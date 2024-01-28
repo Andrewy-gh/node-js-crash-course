@@ -140,7 +140,7 @@ router.get(
     // https://oss.redislabs.com/redisearch/Query_Syntax/
     const searchResults = await redis.performSearch(
       redis.getKeyName('usersidx'),
-      'TODO... YOUR QUERY HERE'
+      `@lastSeenAt:[${locationId} ${locationId}]`
     );
     res
       .status(200)
