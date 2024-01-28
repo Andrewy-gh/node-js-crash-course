@@ -49,32 +49,41 @@ router.get(
     const checkinStreamKey = redis.getKeyName('checkins');
 
     // Get maximum 1000 records so we don't create a huge load.
-    const checkins = await redisClient.xrange(checkinStreamKey, startTime, endTime, 'COUNT', '1000');
+    const checkins = await redisClient.xrange(
+      checkinStreamKey,
+      startTime,
+      endTime,
+      'COUNT',
+      '1000'
+    );
 
     // Convert array of arrays response to array of objects.
     const response = buildCheckinObjects(checkins);
 
     res.status(200).json(response);
-  },
+  }
 );
 
 // EXERCISE: Get the latest checkin.
-router.get(
-  '/checkins/latest',
-  async (req, res) => {
-    const checkinStreamKey = redis.getKeyName('checkins');
+router.get('/checkins/latest', async (req, res) => {
+  const checkinStreamKey = redis.getKeyName('checkins');
 
-    // TODO: Use the XREVRANGE command to get just the latest
-    // (most recent) checkin from the stream whose key is
-    // stored in checkinStreamKey.
-    // https://redis.io/commands/xrevrange
-    const latestCheckin = await redisClient.xrevrange(checkinStreamKey, 'TODO');
+  // TODO: Use the XREVRANGE command to get just the latest
+  // (most recent) checkin from the stream whose key is
+  // stored in checkinStreamKey.
+  // https://redis.io/commands/xrevrange
+  const latestCheckin = await redisClient.xrevrange(
+    checkinStreamKey,
+    '+',
+    '-',
+    'COUNT',
+    '1'
+  );
 
-    // Convert array of arrays response to array of objects.
-    const response = buildCheckinObjects(latestCheckin);
+  // Convert array of arrays response to array of objects.
+  const response = buildCheckinObjects(latestCheckin);
 
-    res.status(200).json(response);
-  },
-);
+  res.status(200).json(response);
+});
 
 module.exports = router;
