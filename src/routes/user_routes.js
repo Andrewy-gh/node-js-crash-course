@@ -28,9 +28,6 @@ router.get(
     const userKey = redis.getKeyName('users', userId);
 
     const userDetail = await redisClient.hgetall(userKey);
-    console.log('====================================');
-    console.log('userDetail', userDetail);
-    console.log('====================================');
     SENSITIVE_FIELD_NAMES.map((fieldName) => delete userDetail[fieldName]);
 
     res.status(200).json(userDetail);

@@ -28,7 +28,10 @@ router.get(
     pipeline.hgetall(locationKey);
 
     if (withDetails) {
-      const locationDetailsKey = redis.getKeyName('locationdetails', locationId);
+      const locationDetailsKey = redis.getKeyName(
+        'locationdetails',
+        locationId
+      );
       pipeline.call('JSON.GET', locationDetailsKey);
     }
 
@@ -49,7 +52,7 @@ router.get(
     }
 
     res.status(200).json(response);
-  },
+  }
 );
 
 // EXERCISE: Get opening hours for a given day.
@@ -72,34 +75,45 @@ router.get(
     // array and return the element held in the position specified by
     // the day variable.  Make sure RedisJSON returns only the day
     // requested!
-    const jsonPath = 'TODO';
+    const jsonPath = `$.hours[${day}]`;
 
     /* eslint-enable no-unused-vars */
-    const hoursForDay = JSON.parse(await redisClient.call('JSON.GET', locationDetailsKey, jsonPath));
+    const hoursForDay = JSON.parse(
+      await redisClient.call('JSON.GET', locationDetailsKey, jsonPath)
+    );
     /* eslint-disable */
 
     // If null response, return empty object.
     res.status(200).json(hoursForDay || {});
-  },
+  }
 );
 
 router.get(
   '/location/:locationId/details',
   [
     param('locationId').isInt({ min: 1 }),
-    query('sections').isString().optional().custom((value, { req }) => {
-      const { sections } = req.query;
-      const validSections = ['socials', 'website', 'description', 'phone', 'hours'];
-      const arrayOfSections = sections.split(',');
+    query('sections')
+      .isString()
+      .optional()
+      .custom((value, { req }) => {
+        const { sections } = req.query;
+        const validSections = [
+          'socials',
+          'website',
+          'description',
+          'phone',
+          'hours',
+        ];
+        const arrayOfSections = sections.split(',');
 
-      for (const str of arrayOfSections) {
-        if (!validSections.includes(str)) {
-          throw new Error(`Invalid value ${str} for sections.`);
+        for (const str of arrayOfSections) {
+          if (!validSections.includes(str)) {
+            throw new Error(`Invalid value ${str} for sections.`);
+          }
         }
-      }
 
-      return true;
-    }),
+        return true;
+      }),
     apiErrorReporter,
   ],
   async (req, res) => {
@@ -112,15 +126,24 @@ router.get(
       jsonPath = sections.split(',');
     }
 
-    const locationDetails = JSON.parse(await redisClient.call('JSON.GET', locationDetailsKey, ...jsonPath));
+    const locationDetails = JSON.parse(
+      await redisClient.call('JSON.GET', locationDetailsKey, ...jsonPath)
+    );
 
     // If null response, return empty object.
     res.status(200).json(locationDetails || {});
-  },
+  }
 );
 
 const validateCategory = (category) => {
-  const validCategories = ['retail', 'cafe', 'restaurant', 'bar', 'hair', 'gym'];
+  const validCategories = [
+    'retail',
+    'cafe',
+    'restaurant',
+    'bar',
+    'hair',
+    'gym',
+  ];
 
   if (!validCategories.includes(category)) {
     throw new Error(`Invalid value ${category} for category.`);
@@ -133,18 +156,23 @@ const validateCategory = (category) => {
 router.get(
   '/locations/bycategory/:category',
   [
-    param('category').isString().custom((value, { req }) => {
-      const { category } = req.params;
-      return validateCategory(category);
-    }),
+    param('category')
+      .isString()
+      .custom((value, { req }) => {
+        const { category } = req.params;
+        return validateCategory(category);
+      }),
     apiErrorReporter,
   ],
   async (req, res) => {
     const { category } = req.params;
-    const searchResults = await redis.performSearch(redis.getKeyName('locationsidx'), `@category:{${category}}`);
+    const searchResults = await redis.performSearch(
+      redis.getKeyName('locationsidx'),
+      `@category:{${category}}`
+    );
 
     res.status(200).json(searchResults);
-  },
+  }
 );
 
 // This should also optionally take location type and min star rating request parameters.
@@ -154,10 +182,13 @@ router.get(
     param('latitude').isFloat(),
     param('longitude').isFloat(),
     param('radius').isInt({ min: 1 }),
-    query('category').isString().optional().custom((value, { req }) => {
-      const { category } = req.query;
-      return validateCategory(category);
-    }),
+    query('category')
+      .isString()
+      .optional()
+      .custom((value, { req }) => {
+        const { category } = req.query;
+        return validateCategory(category);
+      }),
     query('minStars').isInt({ min: 1, max: 5 }).optional(),
     apiErrorReporter,
   ],
@@ -168,19 +199,19 @@ router.get(
     const categoryClause = category ? `@category:{${category}}` : '';
     const minStarsClause = minStars ? `@averageStars:[${minStars} +inf]` : '';
 
-    const searchResults = await redis.performSearch(redis.getKeyName('locationsidx'), `@location:[${longitude},${latitude} ${radius} mi] ${minStarsClause} ${categoryClause}`);
+    const searchResults = await redis.performSearch(
+      redis.getKeyName('locationsidx'),
+      `@location:[${longitude},${latitude} ${radius} mi] ${minStarsClause} ${categoryClause}`
+    );
 
     res.status(200).json(searchResults);
-  },
+  }
 );
 
 // Call an external weather API to get weather for a given location ID.
 router.get(
   '/location/:locationId/weather',
-  [
-    param('locationId').isInt({ min: 1 }),
-    apiErrorReporter,
-  ],
+  [param('locationId').isInt({ min: 1 }), apiErrorReporter],
   async (req, res, next) => {
     const { locationId } = req.params;
 
@@ -211,23 +242,27 @@ router.get(
       const [lng, lat] = coords.split(',');
 
       // Call the API.
-      const apiResponse = await fetch(`https://api.openweathermap.org/data/2.5/weather?units=imperial&lat=${lat}&lon=${lng}&appid=${process.env.WEATHER_API_KEY}`);
+      const apiResponse = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?units=imperial&lat=${lat}&lon=${lng}&appid=${process.env.WEATHER_API_KEY}`
+      );
 
       if (apiResponse.status === 200) {
         // Weather was retrieved OK.
         weatherJSON = await apiResponse.json();
 
         // Store the results in Redis and set TTL.
-        redisClient.setex(getWeatherKey(locationId), CACHE_TIME, JSON.stringify(weatherJSON));
+        redisClient.setex(
+          getWeatherKey(locationId),
+          CACHE_TIME,
+          JSON.stringify(weatherJSON)
+        );
 
         return res.status(200).json(weatherJSON);
       }
-      
+
       return res.status(400).send('Bad request: check your WEATHER_API_KEY!');
     }
-
-    
-  },
+  }
 );
 
 module.exports = router;
